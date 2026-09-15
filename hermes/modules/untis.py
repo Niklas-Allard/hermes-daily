@@ -457,6 +457,31 @@ class UntisModule(Module):
 # -- Hilfsfunktionen -----------------------------------------------------
 
 
+def _is_free(entry: dict[str, Any], markers: tuple[str, ...]) -> bool:
+    """Stunde, die im Plan steht, aber ohne Lehrkraft stattfindet.
+
+    Untis lässt solche Stunden als `regular`/`irregular` stehen und vermerkt
+    das nur im Freitext ("Vtr. ohne Lehrer"). Ausgefallene Stunden sind über
+    den Status abgedeckt und zählen hier nicht mit, sonst würde die Ausgabe
+    "FREI" statt "ENTFÄLLT" melden.
+    """
+    if entry["status"] == "cancelled":
+        return False
+    haystack = " ".join(
+        entry.get(key) or "" for key in ("subst_text", "info", "lesson_text")
+    ).lower()
+    return any(marker in haystack for marker in markers)
+
+
+def _attended(period: dict[str, Any]) -> bool:
+    """Stunde, bei der man tatsächlich anwesend sein muss.
+
+    Grundlage für Schulbeginn/-ende und für die Freistunden-Lücken: was
+    entfällt oder ohne Lehrkraft ist, hält niemanden in der Schule.
+    """
+    return period["status"] != "cancelled" and not period.get("free")
+
+
 def _names(period, raw_key: str, attr: str) -> str:
     """Namen aus einer Periode lesen — erst Rohdaten, dann Stammdaten.
 
